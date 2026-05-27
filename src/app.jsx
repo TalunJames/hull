@@ -263,7 +263,7 @@ function App() {
 
   return (
     <div style={{
-      width: 1920, height: 1080,
+      width: '100%', height: '100%',
       display: 'grid',
       gridTemplateColumns: '112px 1fr',
       gridTemplateRows: '88px 1fr 88px',

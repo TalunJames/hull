@@ -1,0 +1,23 @@
+# Hull — office TV dashboard for Fog Signal Strategies.
+#
+# TrueNAS Scale (Electric Eel / 24.10+, native Docker):
+#   1. SSH into the NAS and clone this repo into a dataset, e.g.
+#        cd /mnt/<pool>/apps && git clone https://github.com/TalunJames/hull.git
+#   2. cd hull && docker compose up -d --build
+#   3. Open http://<truenas-ip>:8080/ on the TV's browser (full-screen / kiosk).
+#
+# Change the host port below (8080) if it's taken. The container always listens on 80.
+services:
+  hull:
+    build: .
+    image: hull:latest
+    container_name: hull
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/app.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

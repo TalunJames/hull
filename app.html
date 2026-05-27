@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Fog Signal · Office TV</title>
+<link rel="stylesheet" href="design-system/colors_and_type.css" />
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: #000; /* letterbox */
+    overflow: hidden;
+    font-family: var(--fs-font-sans);
+    color: var(--fs-fg);
+  }
+  /* 1920x1080 stage, scaled to fit viewport */
+  #stage-wrap {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    background: #000;
+  }
+  #stage {
+    width: 1920px; height: 1080px;
+    background: var(--fs-paper);
+    transform-origin: center center;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Dark mode override — applied to #stage when .dark is set */
+  #stage.dark {
+    background: var(--fs-navy-900);
+    color: var(--fs-paper);
+    --fs-paper: #0E2238;
+    --fs-bg: #0E2238;
+    --fs-bone-50: #14304B;
+    --fs-bone-100: #1A3A5C;
+    --fs-bone-200: #2A527F;
+    --fs-bone: #1A3A5C;
+    --fs-bg-warm: #14304B;
+    --fs-bg-bone: #1A3A5C;
+    --fs-ink: #F1F0E8;
+    --fs-ink-700: #D3D2C3;
+    --fs-ink-500: #A4A39E;
+    --fs-ink-400: #8AA7C2;
+    --fs-fg: #F1F0E8;
+    --fs-fg-muted: #A4A39E;
+    --fs-fg-subtle: #7A7975;
+    --fs-fg-brand: #F8F7F1;
+    --fs-border: rgba(248,247,241,0.14);
+    --fs-border-strong: rgba(248,247,241,0.32);
+  }
+  #stage.dark .__paper-flip {
+    background: var(--fs-navy-800) !important;
+  }
+  /* Letterboxing/scale handled by JS */
+  #root { width: 100%; height: 100%; position: relative; }
+
+  /* Keyframes for the beam pulse */
+  @keyframes beamPulse {
+    0%, 100% { opacity: 0.15; }
+    50% { opacity: 0.35; }
+  }
+  @keyframes tickerScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.9); opacity: 1; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  .fadeUp { animation: fadeUp 360ms cubic-bezier(.2,.6,.2,1) both; }
+
+  /* hairlines */
+  .hr { height: 1px; background: var(--fs-border); width: 100%; }
+  .vr { width: 1px; background: var(--fs-border); height: 100%; }
+  .gold-rule { height: 2px; background: var(--fs-gold); width: 36px; }
+
+  /* common */
+  .eyebrow {
+    font-family: var(--fs-font-sans);
+    font-size: 12px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fs-fg-accent);
+  }
+  .mono { font-family: var(--fs-font-mono); }
+  .display { font-family: var(--fs-font-display); }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* nav buttons */
+  .nav-btn {
+    border: none; background: transparent;
+    width: 100%; padding: 18px 0;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    cursor: pointer;
+    color: var(--fs-fg-on-navy-muted);
+    transition: color 200ms, background 200ms;
+    position: relative;
+  }
+  .nav-btn:hover { color: var(--fs-paper); background: rgba(255,255,255,0.04); }
+  .nav-btn.active { color: var(--fs-gold); }
+  .nav-btn.active::before {
+    content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
+    width: 3px; background: var(--fs-gold);
+  }
+  .nav-btn .nav-label {
+    font-family: var(--fs-font-sans);
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .nav-btn .nav-key {
+    position: absolute; top: 8px; right: 8px;
+    font-family: var(--fs-font-mono); font-size: 10px;
+    color: var(--fs-gold); opacity: 0.6;
+    border: 1px solid currentColor; padding: 1px 5px; border-radius: 2px;
+  }
+
+  /* deck button */
+  .deck-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: var(--fs-navy-800);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--fs-paper);
+    padding: 10px 14px;
+    min-width: 96px; min-height: 56px;
+    cursor: pointer;
+    transition: background 200ms, border-color 200ms;
+    gap: 4px;
+  }
+  .deck-btn:hover { background: var(--fs-navy-600); border-color: rgba(255,255,255,0.18); }
+  .deck-btn.gold { background: var(--fs-gold); color: var(--fs-ink); border-color: var(--fs-gold-600); }
+  .deck-btn.gold:hover { background: var(--fs-gold-600); }
+  .deck-btn.danger { background: #A8341E; border-color: rgba(255,255,255,0.18); }
+  .deck-btn.danger:hover { background: #C03E26; }
+  .deck-btn .deck-num {
+    font-family: var(--fs-font-mono); font-size: 9px; opacity: 0.55;
+    letter-spacing: 0.1em;
+  }
+  .deck-btn .deck-label {
+    font-family: var(--fs-font-sans); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  /* Card primitives */
+  .panel {
+    background: var(--fs-bone-50);
+    padding: 24px;
+    position: relative;
+  }
+  .panel-navy {
+    background: var(--fs-navy);
+    color: var(--fs-paper);
+    padding: 24px;
+    position: relative;
+  }
+  .panel-paper {
+    background: var(--fs-paper);
+    padding: 24px;
+    position: relative;
+  }
+
+  /* live red dot */
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 999px;
+    background: #E33C2A;
+    box-shadow: 0 0 0 0 rgba(227,60,42,0.4);
+    animation: pulse-ring 1.6s ease-out infinite;
+  }
+
+  /* Mini calendar grid */
+  .cal-cell { padding: 6px 4px; text-align: right; font-size: 12px; }
+
+  /* scrollable areas — TV-friendly thin scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--fs-border-strong); border-radius: 4px; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+  <div id="stage-wrap">
+    <div id="stage">
+      <div id="root"></div>
+    </div>
+  </div>
+
+  <script>
+    // Scale stage to fit viewport, preserving 16:9
+    function fitStage() {
+      const stage = document.getElementById('stage');
+      const w = window.innerWidth, h = window.innerHeight;
+      const s = Math.min(w / 1920, h / 1080);
+      stage.style.transform = `scale(${s})`;
+    }
+    window.addEventListener('resize', fitStage);
+    fitStage();
+  </script>
+
+  <script>
+    // ── Google Calendar (optional) ──────────────────────────────────────────
+    // Paste your OAuth Web client ID here to read a real calendar. Leave empty
+    // to keep the app on built-in sample data (the default — nothing changes).
+    // Setup steps are documented at the top of src/google-calendar.jsx.
+    window.GOOGLE_CLIENT_ID = '';
+  </script>
+
+  <script>
+    // Tweak defaults — host rewrites this block.
+    window.TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "accentIntensity": "balanced",
+      "density": "comfortable",
+      "darkMode": "auto",
+      "manualDark": false
+    }/*EDITMODE-END*/;
+  </script>
+
+  <script type="text/babel" src="src/data.jsx"></script>
+  <script type="text/babel" src="src/icons.jsx"></script>
+  <script type="text/babel" src="src/google-calendar.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="src/chrome.jsx"></script>
+  <script type="text/babel" src="src/view-home.jsx"></script>
+  <script type="text/babel" src="src/view-calendar.jsx"></script>
+  <script type="text/babel" src="src/view-livetv.jsx"></script>
+  <script type="text/babel" src="src/view-documents.jsx"></script>
+  <script type="text/babel" src="src/view-call.jsx"></script>
+  <script type="text/babel" src="src/view-staff.jsx"></script>
+  <script type="text/babel" src="src/app.jsx"></script>
+</body>
+</html>

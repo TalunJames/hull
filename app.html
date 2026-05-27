@@ -16,14 +16,15 @@
   /* 1920x1080 stage, scaled to fit viewport */
   #stage-wrap {
     position: fixed; inset: 0;
-    display: grid; place-items: center;
     background: #000;
+    overflow: hidden;
   }
   #stage {
+    position: absolute;
+    top: 0; left: 0;
     width: 1920px; height: 1080px;
     background: var(--fs-paper);
-    transform-origin: center center;
-    position: relative;
+    transform-origin: top left;
     overflow: hidden;
   }
   /* Dark mode override — applied to #stage when .dark is set */
@@ -200,7 +201,12 @@
       const stage = document.getElementById('stage');
       const w = window.innerWidth, h = window.innerHeight;
       const s = Math.min(w / 1920, h / 1080);
-      stage.style.transform = `scale(${s})`;
+      // Scale from the top-left, then explicitly center. Don't rely on
+      // fl/grid centering — some TV/embedded browsers ignore place-items,
+      // which left the stage anchored top-left with black bars top & left.
+      const x = (w - 1920 * s) / 2;
+      const y = (h - 1080 * s) / 2;
+      stage.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
     }
     window.addEventListener('resize', fitStage);
     fitStage();
